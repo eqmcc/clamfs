@@ -1,0 +1,53 @@
+
+ Release Notes
+ =============
+
+ *******************
+ 1.0.1 (28 Dec 2009)
+ *******************
+
+* Fixed FTBFS problem with calling rindex() with a const char *.
+* Fixed memory leaks found by valgrind.
+* Add new dependency: boost >= 1.33.
+
+ *******************
+ 1.0.0 (07 Feb 2009)
+ *******************
+
+* New option <clamd ... check="no" /> allow to mount ClamFS file system when
+  clamd is not available. E.g. form /etc/fstab early on boot process.
+
+ *******************
+ 0.9.3 (06 Dec 2008)
+ *******************
+
+* Add read-only mount option (config: <filesystem readonly="yes" />).
+
+ *******************
+ 0.9.2 (22 Nov 2008)
+ *******************
+
+* Add negative cache (cache information about infected files).
+* Add filesystem statistics (config: <stats atexit="yes" />).
+
+ *******************
+ 0.9.1 (17 Mar 2007)
+ *******************
+
+* Removed debian directory.
+* Add option nonempty to allow mount in non-empty directory.
+
+ *******************
+ 0.9.0 (18 Feb 2007)
+ *******************
+
+* Extensions whitelist and blacklist.
+* More verbose logging (user name/id, process name/id).
+* AV scan exclude based on file size.
+* Sanity check of configuration.
+
+ *******************
+ 0.5.0 (09 Feb 2007)
+ *******************
+
+* Initial release.
