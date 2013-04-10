@@ -102,6 +102,7 @@ static inline const char* fixpath(const char* path)
 */
 static int clamfs_getattr(const char *path, struct stat *stbuf)
 {
+    DEBUG("[DEBUG] in clamfs_getattr... #%s#",path);//CHR
     int res;
 
     const char* fpath = fixpath(path);
@@ -109,7 +110,7 @@ static int clamfs_getattr(const char *path, struct stat *stbuf)
     delete[] fpath;
     if (res == -1)
         return -errno;
-
+    //DEBUG("[DEBUG] in clamfs_getattr: %s",stbuf);//CHR
     return 0;
 }
 
@@ -122,10 +123,12 @@ static int clamfs_getattr(const char *path, struct stat *stbuf)
 static int clamfs_fgetattr(const char *path, struct stat *stbuf,
                         struct fuse_file_info *fi)
 {
+     DEBUG("[DEBUG] in clamfs_fgetattr... #%s#",path);//CHR
+
     int res;
 
     (void) path;
-
+    //cout<<"[DEBUG] in clamfs_fgetattr"<<endl;//CHR
     res = fstat(fi->fh, stbuf);
     if (res == -1)
         return -errno;
@@ -140,6 +143,8 @@ static int clamfs_fgetattr(const char *path, struct stat *stbuf,
 */
 static int clamfs_access(const char *path, int mask)
 {
+    DEBUG("[DEBUG] in clamfs_access... #%s#",path);//CHR
+
     int res;
 
     const char* fpath = fixpath(path);
@@ -389,6 +394,8 @@ static int clamfs_link(const char *from, const char *to)
 */
 static int clamfs_chmod(const char *path, mode_t mode)
 {
+    DEBUG("[DEBUG] in clamfs_chmod...");//CHR
+
     int res;
 
     const char* fpath = fixpath(path);
@@ -527,6 +534,8 @@ static inline int open_backend(const char *path, struct fuse_file_info *fi)
 */
 static int clamfs_open(const char *path, struct fuse_file_info *fi)
 {
+
+    DEBUG("[DEBUG] in clamfs_open... #%s#",path);//CHR
     int ret = 1;
     bool file_is_blacklisted = false;
     int scan_result;
@@ -551,7 +560,10 @@ static int clamfs_open(const char *path, struct fuse_file_info *fi)
     /*
      * Check extension ACL
      */
+    DEBUG("[DEBUG] Check extension ACL");//CHR
     if (extensions != NULL) {
+        DEBUG("[DEBUG] have extensions");//CHR
+
         const char *ext = rindex(path, '.'); /* find last dot */
         if (ext != NULL) {
             ++ext; /* omit dot */
@@ -595,8 +607,11 @@ static int clamfs_open(const char *path, struct fuse_file_info *fi)
     /*
      * Check file size (if option defined)
      */
+     DEBUG("[DEBUG] Check file size ");//CHR
     if ((config["maximal-size"] != NULL) && (file_is_blacklisted == false)) {
         ret = lstat(real_path.get(), &file_stat);
+        DEBUG("[DEBUG] in Check file size and ret=%d",ret);//CHR
+        //we do not handle big file
         if (!ret) { /* got file stat without error */
             if (file_stat.st_size > atoi(config["maximal-size"])) { /* file too big */
                 INC_STAT_COUNTER(tooBigFile);
@@ -615,27 +630,32 @@ static int clamfs_open(const char *path, struct fuse_file_info *fi)
     /*
      * Check if file is in cache
      */
+    DEBUG("[DEBUG] Check if file is in cache");//CHR
+
     if (cache != NULL) { /* only if cache initalized */
         if (ret)
             ret = lstat(real_path.get(), &file_stat);
         if (!ret) { /* got file stat without error */
-
+            DEBUG("[DEBUG] got file stat without error");//CHR
             if (cache->has(file_stat.st_ino)) {
+                DEBUG("[DEBUG] cache has a hit");//CHR
                 Poco::SharedPtr<CachedResult> ptr_val;
                 INC_STAT_COUNTER(earlyCacheHit);
-                DEBUG("early cache hit for inode %ld", (unsigned long)file_stat.st_ino);
+                DEBUG("[DEBUG] early cache hit for inode %ld", (unsigned long)file_stat.st_ino);
                 ptr_val = cache->get(file_stat.st_ino);
 
                 if (ptr_val->scanTimestamp == file_stat.st_mtime) {
                     INC_STAT_COUNTER(lateCacheHit);
-                    DEBUG("late cache hit for inode %ld", (unsigned long)file_stat.st_ino);
+                    DEBUG("[DEBUG] late cache hit for inode %ld", (unsigned long)file_stat.st_ino);
 
                     /* file scanned and not changed, was it clean? */
                     if (ptr_val->isClean) {
                         INC_STAT_COUNTER(openAllowed);
+                        DEBUG("[DEBUG] ============[1]=================");//CHR
                         return open_backend(path, fi); /* Yes, it was */
                     } else {
                         INC_STAT_COUNTER(openDenied);
+                        DEBUG("[DEBUG] ============[2]=================");//CHR
                         return -EPERM; /* No, that file was infected */
                     }
                 } else {
@@ -645,6 +665,7 @@ static int clamfs_open(const char *path, struct fuse_file_info *fi)
                     /*
                      * Scan file when file it was changed
                      */
+                    DEBUG("[DEBUG] do scan here - 1");//CHR
                     scan_result = ClamavScanFile(real_path.get());
 
                     /*
@@ -656,44 +677,56 @@ static int clamfs_open(const char *path, struct fuse_file_info *fi)
                     if (scan_result == 1) { /* virus found */
                         ptr_val->isClean = false;
                         INC_STAT_COUNTER(openDenied);
+                        DEBUG("[DEBUG] ============[3]=================");//CHR
                         return -EPERM;
                     } else if(scan_result == 0) {
                         ptr_val->isClean = true;
                         INC_STAT_COUNTER(openAllowed);
                         /* file is clean, open it */
+                        DEBUG("[DEBUG] ============[4]=================");//CHR
                         return open_backend(path, fi);
                     } else {
                         INC_STAT_COUNTER(scanFailed);
                         INC_STAT_COUNTER(openDenied);
                         cache->remove(file_stat.st_ino);
+                        DEBUG("[DEBUG] ============[5]=================");//CHR
                         return -EPERM;
                     }
                 }
 
             } else {
+                DEBUG("[DEBUG] cache does not have a hit");//CHR
                 INC_STAT_COUNTER(earlyCacheMiss);
-                DEBUG("early cache miss for inode %ld", (unsigned long)file_stat.st_ino);
+                DEBUG("[DEBUG] early cache miss for inode %ld", (unsigned long)file_stat.st_ino);
 
                 /*
                  * Scan file when file is not in cache
                  */
+                DEBUG("[DEBUG] do scan here - 2 ");//CHR
                 scan_result = ClamavScanFile(real_path.get());
 
                 /*
                  * Check for scan results
                  */
                 if (scan_result == 1) { /* virus found */
+                    DEBUG("[DEBUG] find virus and add in cache");//CHR
+                    DEBUG("[DEBUG] ===========[6]==================");//CHR
+
                     CachedResult result(false, file_stat.st_mtime);
                     cache->add(file_stat.st_ino, result);
                     INC_STAT_COUNTER(openDenied);
                     return -EPERM;
                 } else if(scan_result == 0) {
+                    DEBUG("[DEBUG] file is clean and add in cache");//CHR
+                    DEBUG("[DEBUG] ===========[7]==================");//CHR
                     CachedResult result(true, file_stat.st_mtime);
                     cache->add(file_stat.st_ino, result);
                     INC_STAT_COUNTER(openAllowed);
                     /* file is clean, open it */
                     return open_backend(path, fi);
                 } else {
+                    DEBUG("[DEBUG] ===========[8]==================");//CHR
+
                     INC_STAT_COUNTER(scanFailed);
                     INC_STAT_COUNTER(openDenied);
                     cache->remove(file_stat.st_ino);
@@ -708,6 +741,7 @@ static int clamfs_open(const char *path, struct fuse_file_info *fi)
     /*
      * Scan file when cache is not available
      */
+    DEBUG("[DEBUG] no cache and scan file at here - 3");//CHR
     scan_result = ClamavScanFile(real_path.get());
 
     /*
@@ -740,6 +774,7 @@ static int clamfs_open(const char *path, struct fuse_file_info *fi)
 static int clamfs_read(const char *path, char *buf, size_t size, off_t offset,
                     struct fuse_file_info *fi)
 {
+    DEBUG("[DEBUG] in clamfs_read... #%s#",path); //CHR
     int res;
 
     (void) path;
@@ -761,6 +796,7 @@ static int clamfs_read(const char *path, char *buf, size_t size, off_t offset,
 static int clamfs_write(const char *path, const char *buf, size_t size,
                      off_t offset, struct fuse_file_info *fi)
 {
+    DEBUG("[DEBUG] in clamfs_write..."); //CHR
     int res;
 
     (void) path;
@@ -778,6 +814,7 @@ static int clamfs_write(const char *path, const char *buf, size_t size,
 */
 static int clamfs_statfs(const char *path, struct statvfs *stbuf)
 {
+    DEBUG("[DEBUG] in clamfs_statfs..."); //CHR
     int res;
 
     const char* fpath = fixpath(path);
@@ -840,6 +877,7 @@ static int clamfs_fsync(const char *path, int isdatasync,
 static int clamfs_setxattr(const char *path, const char *name, const char *value,
                         size_t size, int flags)
 {
+    DEBUG("[DEBUG] in clamfs_setxattr...");//CHR
     int res;
     const char* fpath = fixpath(path);
     res = lsetxattr(fpath, name, value, size, flags);
@@ -859,6 +897,7 @@ static int clamfs_setxattr(const char *path, const char *name, const char *value
 static int clamfs_getxattr(const char *path, const char *name, char *value,
                     size_t size)
 {
+     DEBUG("[DEBUG] in clamfs_getxattr...");//CHR
     int res;
     const char* fpath = fixpath(path);
     res = lgetxattr(fpath, name, value, size);
@@ -876,6 +915,8 @@ static int clamfs_getxattr(const char *path, const char *name, char *value,
 */
 static int clamfs_listxattr(const char *path, char *list, size_t size)
 {
+    DEBUG("[DEBUG] in clamfs_listxattr...");//CHR
+
     int res;
     const char* fpath = fixpath(path);
     res = llistxattr(fpath, list, size);
@@ -914,6 +955,7 @@ int main(int argc, char *argv[])
     char **fuse_argv;
     fuse_operations clamfs_oper;
 
+    cout<<"[DEBUG]get started..."<<endl;
     /*
      * Make sure all pointers are initialy set to NULL
      */
@@ -1053,6 +1095,7 @@ int main(int argc, char *argv[])
         rLog(Warn, "chdir failed: %s", strerror(err));
         return err;
     }
+    //CHR open current dir
     savefd = open(".", 0);
 
     /*
@@ -1085,10 +1128,16 @@ int main(int argc, char *argv[])
         rLog(Warn, "maximal cache expire value cannot be =< 0");
         return EXIT_FAILURE;
     }
+
+/*
+    <!-- How many entries to keep in cache and for how long -->
+    <cache entries="16384" expire="10800000" /> <!-- time in ms, 3h -->
+*/
     if ((config["entries"] != NULL) &&
         (config["expire"] != NULL)) {
         rLog(Info, "ScanCache initialized, %s entries will be kept for %s ms max.",
             config["entries"], config["expire"]);
+        cout<<"[DEBUG] init cache with entries="<<config["entries"]<<", expire="<<config["expire"]<<endl;//CHR
         cache = new ScanCache(atol(config["entries"]), atol(config["expire"]));
     } else {
         rLog(Warn, "ScanCache disabled, expect poor performance");
@@ -1137,7 +1186,10 @@ int main(int argc, char *argv[])
     /*
      * Start FUSE
      */
+    cout<<"[DEBUG] start fuse..."<<endl;
     ret = fuse_main(fuse_argc, fuse_argv, &clamfs_oper);
+     DEBUG("[DEBUG] stop fuse...");
+
 
     for (unsigned int i = 0; i < FUSE_MAX_ARGS; ++i)
         if (fuse_argv[i])

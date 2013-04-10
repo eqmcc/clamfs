@@ -55,8 +55,11 @@ unixstream clamd;
    \returns 0 on success and -1 on failure
 */
 int OpenClamav(const char *unixSocket) {
+    cout<<"[DEBUG] in OpenClamav"<<endl;//CHR
     DEBUG("attempt to open control connection to clamd via %s", unixSocket); 
 
+    //CHR see
+    //http://ng911dev1.cs.columbia.edu/docs/cc++/classost_1_1unixstream.html
     clamd.open(unixSocket);
     CHECK_CLAMD(clamd);
 
@@ -67,11 +70,22 @@ int OpenClamav(const char *unixSocket) {
 /*!\brief Check clamd availability by sending PING command and checking the reply
 */
 int PingClamav() {
+    cout<<"[DEBUG] PING OpenClamav"<<endl;//CHR
+
     string reply;
 
     CHECK_CLAMD(clamd);
     clamd << "PING" << endl;
     clamd >> reply;
+//CHR
+    cout<<"[DEBUG] PING clamd replied: "<<reply<<endl;//CHR
+    clamd << "VERSION" << endl;
+    string reply1;
+    clamd >> reply1;
+    cout<<"[DEBUG] VERSION clamd replied: "<<reply1<<endl;//CHR
+//CHR
+
+    
 
     if (reply != "PONG") {
         rLog(Warn, "invalid reply for PING received: %s", reply.c_str());
@@ -98,7 +112,7 @@ void CloseClamav() {
 int ClamavScanFile(const char *filename) {
     string reply;
 
-    DEBUG("attempt to scan file %s", filename);
+    DEBUG("[DEBUG] attempt to scan file %s", filename);
 
     /*
      * Enqueue requests
@@ -123,7 +137,7 @@ int ClamavScanFile(const char *filename) {
     /*
      * Chceck for scan results, return if file is clean
      */
-    DEBUG("%s", reply.c_str());
+    DEBUG("[DEBUG] %s", reply.c_str());
     if (strncmp(reply.c_str() + reply.size() - 2, "OK", 2) == 0 ||
         strncmp(reply.c_str() + reply.size() - 10, "Empty file", 10) == 0) {
         return 0;

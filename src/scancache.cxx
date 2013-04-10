@@ -37,7 +37,8 @@ CachedResult::~CachedResult() {
 }
 
 ScanCache::ScanCache(long int elements, long int expire):
-    ExpireLRUCache<ino_t, CachedResult>::ExpireLRUCache<ino_t, CachedResult>(elements, expire) {
+   // ExpireLRUCache<ino_t, CachedResult>::ExpireLRUCache<ino_t, CachedResult>(elements, expire) {
+    ExpireLRUCache<ino_t, CachedResult>::ExpireLRUCache(elements, expire) {
 }
 
 ScanCache::~ScanCache() {

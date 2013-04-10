@@ -1,0 +1,11 @@
+# stop clamd
+CLAMD_PID=`ps -ef | grep clamd | grep -v auto | awk '{print $2}'`
+sudo kill  $CLAMD_PID
+sleep 1
+# stop clamfs
+CLAMFS_PID=`ps -ef | grep clamfs.xml | grep -v auto | awk '{print $2}'`
+sudo kill  $CLAMFS_PID
+sleep 1
+# umount
+sudo umount /home/user/customs
+sleep 1

@@ -1,0 +1,12 @@
+sudo clamd
+sleep 1
+sudo clamfs /home/user/clamfs.xml
+sleep 1
+sudo file /home/user/customs/test.txt
+sudo file /home/user/customs/test1.txt
+sudo file /home/user/customs/test.txt
+sudo file /home/user/customs/test1.txt
+sudo chmod u+x /home/user/customs/test1.txt
+sudo cat /home/user/customs/test1.txt
+sleep 1
+grep DEBUG /var/log/clamfs.log
